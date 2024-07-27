@@ -1,23 +1,8 @@
 pacman::p_load(tidyverse,linelist,,ggpubr,flextable,readtext,mlogit,ggplot2)
 
 ################## Import data and statified sampling ################## 
-# Import the data that has been spatially sampled
-mydata <- import('~/mydata.csv')
-
-# Create a balanced panel data containing all years and uid
-balanced_id <- expand.grid(
-  uid = unique(mydata_s$uid),
-  Year = unique(mydata_s$Year)
-)
-balanced_id <- balanced_id %>% arrange(uid,Year)
-
-# Stratified Sampling
-set.seed(40)
-stratified_id <- balanced_id %>%
-  group_by(uid) %>%
-  sample_n(1) %>%
-  ungroup() 
-sample_data <- merge(stratified_id, mydata, by=c('uid','Year'), all.x=T) %>% drop_na()
+# Import the data sample that has been processed with the two-step sampling
+sample_data <- import('~/sample_data.csv')
 
 # Factoring Choice and Choice_lag to facilitate discrete-choice estimation
 sample_data$Choice <- factor(sample_data$Choice, 
