@@ -237,7 +237,7 @@ wta <- function(beta.v,x_rent,drip,sprinkler,flood){
   return(wta)
 }
 
-alfalfa_wta <- wta(beta.v,x_rent,drip=.90,sprinkler=.80,flood=.76) # Used to produce Figs 1 and 2
+alfalfa_wta <- wta(beta.v,x_rent,drip=.90,sprinkler=.80,flood=.76) 
 
 # Check if conversion to fallow is the most cost-effective option
 indicator <- ifelse(alfalfa_wta[,'cost_Fallow'] != pmin(alfalfa_wta[,'cost_Fallow'], alfalfa_wta[,'cost_Grain'], alfalfa_wta[,'cost_Hay']), 1, 0)
@@ -275,8 +275,8 @@ alfalfa_wta <- cbind(alfalfa_wta,cost_fallow_bca,cost_grain_bca,cost_hay_bca) %>
                 water_Fallow,water_Grain,water_Hay,wta_Fallow_lower,wta_Fallow_upper,wta_Grain_lower,wta_Grain_upper,wta_Hay_lower,wta_Hay_upper,
                 cost_Fallow_lower,cost_Fallow_upper,cost_Grain_lower,cost_Grain_upper,cost_Hay_lower,cost_Hay_upper)
 
-# Data frame 'alfalfa_wta' has 28 columns and 752,212 rows; export the data in csv format
-write.csv(alfalfa_wta,'~/alfalfa_wta.csv',row.names=FALSE)
+# Data frame 'alfalfa_wta' has 28 columns and 752,212 rows and is used to produce Figs 1 and 2; export the data in csv format
+write.csv(alfalfa_wta,'~/alfalfa_wta.csv',row.names=FALSE) 
 
 ### Calculate marginal costs and draw marginal cost curves (i.e., water supply curves in Fig. 3) ### 
 # Marginal costs
