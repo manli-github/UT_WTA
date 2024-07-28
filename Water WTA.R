@@ -11,6 +11,7 @@ sample_data$Choice_lag <- factor(sample_data$Choice_lag,
                                  levels = c("Alfalfa", "Fallow", "Hay", "OtherCrop", "OtherGrain", "Wheat"))
 
 # Randomly sampling into train and test data
+set.seed(40)
 sample_indices <- sample(1:nrow(sample_data), 0.5 * nrow(sample_data))
 train_data <- sample_data[sample_indices, ]
 test_data <- sample_data[-sample_indices, ] 
