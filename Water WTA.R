@@ -1,6 +1,6 @@
 pacman::p_load(tidyverse,linelist,,ggpubr,flextable,readtext,mlogit,ggplot2)
 
-################## Import data and statified sampling ################## 
+################## Import data ################## 
 # Import the data sample that has been processed with the two-step sampling
 sample_data <- import('~/sample_data.csv')
 
