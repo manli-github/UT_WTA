@@ -45,7 +45,7 @@ map_wta_grain <- createMap(.data = alfalfa_wta_grain, maptitle = 'b. To Spring G
                            .name = 'WTA ($/ha)', .color = wta_colors, .limits = wta_limits, .breaks = wta_breaks)
 map_wta_hay <- createMap(.data = alfalfa_wta_hay, maptitle = 'c. To Other Hays',
                          .name = 'WTA ($/ha)', .color = wta_colors, .limits = wta_limits, .breaks = wta_breaks)
-map_wta_combined <- ggarrange(map_wta_fallow,map_wta_grain,map_wta_hay,nrow=1,ncol=3,common.legend = T,legend = "right") # Fig 1
+map_wta_combined <- ggarrange(map_wta_fallow,map_wta_grain,map_wta_hay,nrow=1,ncol=3,common.legend = T,legend = "right") # Fig 2
 
 map_cost_fallow <- createMap(.data = alfalfa_cost_fallow, maptitle = 'a. To Fallow',
                              .name = 'Cost ($/m3)', .color = cost_colors, .limits = cost_limits, .breaks = cost_breaks)
