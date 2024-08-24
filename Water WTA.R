@@ -772,6 +772,23 @@ hist(basin2,prob=T,border=F,col='darkred', density=80, xlim=c(3200,6700), breaks
 hist(basin3,prob=T,border=F,col='darkgreen', density=80, xlim=c(3200,6700), breaks = 100, add=T)
 legend('topleft',c('BEAR','WEBER','JORDAN'), fill = c('darkblue','darkred','darkgreen'), bty = 'n', border = NA)
 
+# Uniform payment system (used to produce Fig S6)
+cutoff_wta_uniform <- data.frame(
+  county = c('BOX ELDER','CACHE','RICH','WEBER','DAVIS','MORGAN','SUMMIT','SALT LAKE','UTAH','WASATCH','JUAB'),
+  cutoff_wta = rep(6093,11),
+  cutoff_wta_upper = rep(6711,11)
+)
+
+alfalfa_wta_uniform <- merge(alfalfa_wta,cutoff_wta_uniform,by = 'county',all.x=T) %>% 
+  mutate(enroll = as.numeric(wta_Fallow<=cutoff_wta),
+         enroll_lower = as.numeric(wta_Fallow_lower<=cutoff_wta),
+         enroll_upper = as.numeric(wta_Fallow_upper<=cutoff_wta)) %>% 
+  mutate(enroll_a = as.numeric(wta_Fallow<=cutoff_wta_upper),
+         enroll_a_lower = as.numeric(wta_Fallow_lower<=cutoff_wta_upper),
+         enroll_a_upper = as.numeric(wta_Fallow_upper<=cutoff_wta_upper)) %>% 
+  dplyr::select(X,Y,basin,county,wta_Fallow,enroll,enroll_lower,enroll_upper,enroll_a,enroll_a_lower,enroll_a_upper)
+write.csv(alfalfa_wta_uniform,'~/alfalfa_wta_uniform.csv',row.names=FALSE)
+
 # Watershed-level payment system (used to produce Fig 4)
 cutoff_wta_basin <- data.frame(
   county = c('BOX ELDER','CACHE','RICH','WEBER','DAVIS','MORGAN','SUMMIT','SALT LAKE','UTAH','WASATCH','JUAB'),
