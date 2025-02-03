@@ -763,7 +763,7 @@ tab7 <- mc_combined_irri_high %>%
 tab_combined <- Reduce(function(x, y) merge(x, y, by = c("group", "basin"), all = TRUE), list(tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7))
 
 ########### Water conservation policy design ###########
-# Histogram plot of estimated WTA for fallow alfalfa by watershed (Fig. S3)
+# Histogram plot of estimated WTA for fallow alfalfa by watershed (Fig. S2)
 basin1 <- as.matrix(subset(alfalfa_wta,basin=='BEAR RIVER')[,'wta_Fallow'] )
 basin2 <- as.matrix(subset(alfalfa_wta,basin=='WEBER RIVER')[,'wta_Fallow'])
 basin3 <- as.matrix(subset(alfalfa_wta,basin=='JORDAN RIVER')[,'wta_Fallow'])
@@ -772,52 +772,91 @@ hist(basin2,prob=T,border=F,col='darkred', density=80, xlim=c(3200,6700), breaks
 hist(basin3,prob=T,border=F,col='darkgreen', density=80, xlim=c(3200,6700), breaks = 100, add=T)
 legend('topleft',c('BEAR','WEBER','JORDAN'), fill = c('darkblue','darkred','darkgreen'), bty = 'n', border = NA)
 
-# Uniform payment system (used to produce Fig S6)
-cutoff_wta_uniform <- data.frame(
-  county = c('BOX ELDER','CACHE','RICH','WEBER','DAVIS','MORGAN','SUMMIT','SALT LAKE','UTAH','WASATCH','JUAB'),
-  cutoff_wta = rep(6093,11),
-  cutoff_wta_upper = rep(6711,11)
-)
+# Define cutoff function 
+cutoff <- function(indata){
+  outdata <- indata %>% 
+    mutate(enroll = as.numeric(wta_Fallow <= cutoff_wta),
+           enroll_lower = as.numeric(wta_Fallow_lower <= cutoff_wta),
+           enroll_upper = as.numeric(wta_Fallow_upper <= cutoff_wta)) %>%   
+    mutate(enroll_water = enroll*water_Fallow,
+           enroll_water_lower = enroll_lower*water_Fallow,
+           enroll_water_upper = enroll_upper*water_Fallow) %>% 
+    mutate(enroll_tc = enroll*cutoff_wta*.09,
+           enroll_tc_lower = enroll_lower*cutoff_wta*.09,
+           enroll_tc_upper = enroll_upper*cutoff_wta*.09) 
+  return(outdata)
+}
+cutoff_sum <- function(indata){
+  outdata <- indata %>% 
+    summarise_at(vars(enroll_water,enroll_water_lower,enroll_water_upper,
+                      enroll_tc,enroll_tc_lower,enroll_tc_upper),sum,na.rm=T) %>% 
+    mutate(ac=enroll_tc/enroll_water,ac_lower=enroll_tc_lower/enroll_water_lower,ac_upper=enroll_tc_upper/enroll_water_upper) %>% 
+    mutate(enroll_water=enroll_water/1000000,enroll_water_lower=enroll_water_lower/1000000,enroll_water_upper=enroll_water_upper/1000000,
+           enroll_tc=enroll_tc/1000000,enroll_tc_lower=enroll_tc_lower/1000000,enroll_tc_upper=enroll_tc_upper/1000000)
+  colnames(outdata) <- c('water','water_upper','water_lower','tc','tc_upper','tc_lower','ac','ac_upper','ac_lower')
+  return(outdata)
+}
 
-alfalfa_wta_uniform <- merge(alfalfa_wta,cutoff_wta_uniform,by = 'county',all.x=T) %>% 
-  mutate(enroll = as.numeric(wta_Fallow<=cutoff_wta),
-         enroll_lower = as.numeric(wta_Fallow_lower<=cutoff_wta),
-         enroll_upper = as.numeric(wta_Fallow_upper<=cutoff_wta)) %>% 
-  mutate(enroll_a = as.numeric(wta_Fallow<=cutoff_wta_upper),
-         enroll_a_lower = as.numeric(wta_Fallow_lower<=cutoff_wta_upper),
-         enroll_a_upper = as.numeric(wta_Fallow_upper<=cutoff_wta_upper)) %>% 
-  dplyr::select(X,Y,basin,county,wta_Fallow,enroll,enroll_lower,enroll_upper,enroll_a,enroll_a_lower,enroll_a_upper)
-write.csv(alfalfa_wta_uniform,'~/alfalfa_wta_uniform.csv',row.names=FALSE)
+### Site-specific payment (used to produce Fig 5 and Fig 6a) ###
+# Baseline
+tmp <- rank_pixel %>% 
+  mutate(cutoff_wta = case_when(water_sum <= 581000000 | (lag(water_sum, default = 0) <= 581000000 & water_sum > 581000000) ~ wta_Fallow,
+         .default = 0.54*water_Fallow/.09))
+cutoff_pixel <- cutoff(tmp)
+tab_pixel <- cutoff_sum(cutoff_pixel)
+# Conservative
+tmp <- rank_pixel_upper %>% 
+  mutate(cutoff_wta=case_when(water_sum <= 581000000 | (lag(water_sum, default = 0) <= 581000000 & water_sum > 581000000) ~ wta_Fallow_upper,
+                              .default = 0.56*water_Fallow/.09))
+cutoff_pixel_upper <- cutoff(tmp)
+tab_pixel_upper <- cutoff_sum(cutoff_pixel_upper)
+# Export data
+tmp <- cutoff_pixel %>% dplyr::select(pid,X,Y,basin,county,cutoff_wta,enroll)
+tmp_upper <- cutoff_pixel_upper %>% 
+  rename(cutoff_wta_upper=cutoff_wta,enroll_a=enroll) %>% 
+  dplyr::select(pid,cutoff_wta_upper,enroll_a)
+alfalfa_wta_pixel <- merge(tmp,tmp_upper,by='pid')
+write.csv(alfalfa_wta_pixel,'~/alfalfa_wta_pixel.csv',row.names=FALSE)
 
-# Watershed-level payment system (used to produce Fig 4)
-cutoff_wta_basin <- data.frame(
-  county = c('BOX ELDER','CACHE','RICH','WEBER','DAVIS','MORGAN','SUMMIT','SALT LAKE','UTAH','WASATCH','JUAB'),
-  cutoff_wta = c(rep(6093,7),rep(4331,4)),
-  cutoff_wta_upper = c(rep(6711,7),rep(4567,4))
-)
+### County-level payment (used to produce Fig 6b) ###
+# Baseline
+tmp <- merge(rank_pixel,cutoff_wta_county,by=(c('county','irri')),all.x=T)
+cutoff_county <- cutoff(tmp)
+tab_county <- cutoff_sum(cutoff_county)
+# Conservative
+tmp <- merge(rank_pixel_upper,cutoff_wta_county_upper,by=(c('county','irri')),all.x=T)
+cutoff_county_upper <- cutoff(tmp)
+tab_county_upper <- cutoff_sum(cutoff_county_upper)
+# Export data
+tmp <- cutoff_county %>% dplyr::select(pid,X,Y,county,county,cutoff_wta,enroll,enroll_lower,enroll_upper)
+tmp_upper <- cutoff_county_upper %>% 
+  rename(cutoff_wta_upper=cutoff_wta,enroll_a=enroll,enroll_a_lower=enroll_lower,enroll_a_upper=enroll_upper) %>% 
+  dplyr::select(pid,cutoff_wta_upper,enroll_a,enroll_a_lower,enroll_a_upper)
+alfalfa_wta_county <- merge(tmp,tmp_upper,by='pid')
+write.csv(alfalfa_wta_county,'~/alfalfa_wta_county.csv',row.names=FALSE)
 
-alfalfa_wta_basin <- merge(alfalfa_wta,cutoff_wta_basin,by = 'county',all.x=T) %>% 
-  mutate(enroll = as.numeric(wta_Fallow<=cutoff_wta), # Baseline scenario
-         enroll_lower = as.numeric(wta_Fallow_lower<=cutoff_wta), # Lower bound of 95% CI in the baseline scenario
-         enroll_upper = as.numeric(wta_Fallow_upper<=cutoff_wta)) %>% # Upper bound of 95% CI in the baseline scenario
-  mutate(enroll_a = as.numeric(wta_Fallow<=cutoff_wta_upper), # Conservative scenario
-         enroll_a_lower = as.numeric(wta_Fallow_lower<=cutoff_wta_upper), # Lower bound of 95% CI in the conservative scenario
-         enroll_a_upper = as.numeric(wta_Fallow_upper<=cutoff_wta_upper)) %>% # Upper bound of 95% CI in the conservative scenario
-  dplyr::select(X,Y,basin,county,wta_Fallow,enroll,enroll_lower,enroll_upper,enroll_a,enroll_a_lower,enroll_a_upper)
+### Watershed-level payment (used to produce Fig 6c) ###
+# Baseline
+tmp <- merge(rank_pixel,cutoff_wta_basin,by=(c('basin','irri')),all.x=T)
+cutoff_basin <- cutoff(tmp)
+tab_basin <- cutoff_sum(cutoff_basin)
+# Conservative
+tmp <- merge(rank_pixel_upper,cutoff_wta_basin_upper,by=(c('basin','irri')),all.x=T)
+cutoff_basin_upper <- cutoff(tmp)
+tab_basin_upper <- cutoff_sum(cutoff_basin_upper)
+# Export data
+tmp <- cutoff_basin %>% dplyr::select(pid,X,Y,basin,county,cutoff_wta,enroll,enroll_lower,enroll_upper)
+tmp_upper <- cutoff_basin_upper %>% 
+  rename(cutoff_wta_upper=cutoff_wta,enroll_a=enroll,enroll_a_lower=enroll_lower,enroll_a_upper=enroll_upper) %>% 
+  dplyr::select(pid,cutoff_wta_upper,enroll_a,enroll_a_lower,enroll_a_upper)
+alfalfa_wta_basin <- merge(tmp,tmp_upper,by='pid')
 write.csv(alfalfa_wta_basin,'~/alfalfa_wta_basin.csv',row.names=FALSE)
 
-# County-level payment system (used to produce Fig 5)
-cutoff_wta_county <- data.frame(
-  county = c('BOX ELDER','CACHE','RICH','WEBER','DAVIS','MORGAN','SUMMIT','SALT LAKE','UTAH','WASATCH','JUAB'),
-  cutoff_wta = c(6093,5573,5284,rep(6093,2),6051,5987,4331,3976,3621,3587),
-  cutoff_wta_upper = c(6711,5767,5477,rep(6711,2),6669,6597,4567,4163,3785,3744)
-)
-alfalfa_wta_county <- merge(alfalfa_wta,cutoff_wta_county,by='county',all.x=T) %>% 
-  mutate(enroll = as.numeric(wta_Fallow<=cutoff_wta), # Baseline scenario
-         enroll_lower = as.numeric(wta_Fallow_lower<=cutoff_wta), # Lower bound of 95% CI in the baseline scenario
-         enroll_upper = as.numeric(wta_Fallow_upper<=cutoff_wta)) %>% # Upper bound of 95% CI in the baseline scenario
-  mutate(enroll_a = as.numeric(wta_Fallow<=cutoff_wta_upper), # Conservative scenario
-         enroll_a_lower = as.numeric(wta_Fallow_lower<=cutoff_wta_upper), # Lower bound of 95% CI in the conservative scenario
-         enroll_a_upper = as.numeric(wta_Fallow_upper<=cutoff_wta_upper)) %>% # Upper bound of 95% CI in the conservative scenario
-  dplyr::select(X,Y,basin,county,wta_Fallow,enroll,enroll_lower,enroll_upper,enroll_a,enroll_a_lower,enroll_a_upper)
-write.csv(alfalfa_wta_county,'~/alfalfa_wta_county.csv',row.names=FALSE)
+# Create table 1
+vname <- rep(c('pixel','county','basin'), each = 2)
+sce <- rep(c('basline','conservative'),3)
+tab_all <- rbind(tab_pixel,tab_pixel_upper,tab_county,tab_county_upper,tab_basin,tab_basin_upper) %>% 
+  dplyr::select(water,water_lower,water_upper,tc,tc_lower,tc_upper,ac,ac_lower,ac_upper)
+tab_all <- cbind(vname,sce,tab_all)
+write.csv(tab_all,'~/tab_all.csv',row.names=FALSE)
+         
