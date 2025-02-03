@@ -2,9 +2,39 @@ pacman::p_load(tidyverse,linelist,rio,here,sp,sf,raster,tmap,foreign,ncdf4,data.
 
 # Import the watershed boundary shapefile
 basin_gsl <- read_sf('~/basin_gsl/basin_gsl.shp')
+lake <- read_sf('~/UtahLakesNHD/LakesNHDHighRes.shp')
+study_area <- read_sf('~/study_area.shp')
+ut <- read_sf('~/Utah/Utah.shp')
+usa <- read_sf('~/gadm41_USA_shp/gadm41_USA_1.shp')
+cdl2022 <- raster('~/cdl2022.tif')
+
 alfalfa_wta <- import('~/alfalfa_wta.csv') # Note: alfalfa_wta dataframe can also be obtained using code in Water WTA.R
 
 # Study area map: Fig. 1
+lake_gsl <- lake %>% filter(GNIS_Name == 'Great Salt Lake') %>% 
+  dplyr::select(GNIS_Name)
+lake_gsl<- st_transform(lake_gsl, crs(study_area))
+ut <- ut %>% filter(STATE=='Utah') %>% mutate(STATE='UTAH')
+ut <- st_transform(ut, crs(study_area))
+
+usa <- usa %>% filter(NAME_1 != 'Alaska' & NAME_1 != 'Hawaii')
+usa <- st_union(usa)
+usa <- st_transform(usa, crs(study_area))
+county <- st_transform(county, crs(study_area))
+
+crs(cdl2022) <- crs(study_area)
+cdl_gsl <- crop(cdl2022,extent(lake_gsl))
+cdl_gsl <- mask(cdl_gsl,lake_gsl)
+all_ids <- unique(values(cdl_gsl))
+reclass_vector <- rep(NA, length(all_ids))
+reclass_vector[3] <- 111 # open water ID = 111
+rclmat <- cbind(all_ids, reclass_vector)
+cdl_water <- reclassify(cdl_gsl, rclmat)
+cdl_water_df <- as.data.frame(cdl_water, xy = TRUE) %>% 
+  rename (value = Class_Names) %>% 
+  drop_na(value) %>% 
+  mutate(color = ifelse(value == 111, "#3182bd", NA)) 
+
 map_ut <- ggplot() +
   geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
   geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE) +
@@ -62,6 +92,10 @@ alfalfa_cost_hay <- alfalfa_wta %>% rename(value = cost_Hay) %>% mutate(color = 
 # Define createMap function
 createMap <- function(.data, .name, .color, .limits, .breaks, maptitle){
   ggplot() +
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = value)) +
     scale_fill_gradientn(name = .name, colors = .color, limits = .limits, breaks = .breaks) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -81,7 +115,11 @@ createMap <- function(.data, .name, .color, .limits, .breaks, maptitle){
 }
 
 createMap_noscale <- function(.data, .name, .limits, .breaks, .value, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = {{.value}})) +
     scale_fill_viridis_c(name = .name, limits = .limits, breaks = .breaks) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -116,7 +154,11 @@ ggsave('~/map_wta.jpeg',plot=map_wta_combined,width=16,height=8,dpi=300) # Fig 2
 
 ### Unit Cost ###
 createMap_c <- function(.data, .name, .limits, .breaks, .value, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = {{.value}})) +
     scale_fill_viridis_c(name = .name, limits = .limits, breaks = .breaks, guide = guide_colorbar(direction = "horizontal")) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -142,7 +184,11 @@ createMap_c <- function(.data, .name, .limits, .breaks, .value, maptitle){
     ) 
 }
 createMap_c_noscale <- function(.data, .name, .limits, .breaks, .value, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = {{.value}})) +
     scale_fill_viridis_c(name = .name, limits = .limits, breaks = .breaks,guide = guide_colorbar(direction = "horizontal")) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -240,7 +286,11 @@ alfalfa_wta_county[is.na(alfalfa_wta_county)] <- 0
 alfalfa_wta_basin[is.na(alfalfa_wta_basin)] <- 0
 
 createMap_a <- function(.value, .data, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = factor({{.value}}))) +
     scale_fill_manual(name = 'Projected Status', values = c("1" = "#1a9850","0" = "#d73027"), labels = c("1" = "Enrolled","0" = "Not enrolled")) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -278,7 +328,11 @@ createMap_a_noscale <- function(.value, .data, maptitle){
     coord_sf()
 }
 createMap_cutoff <- function(.data, .name, .limits, .breaks, .value, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = {{.value}})) +
     scale_fill_viridis_c(name = .name, limits = .limits, breaks = .breaks) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
@@ -297,7 +351,11 @@ createMap_cutoff <- function(.data, .name, .limits, .breaks, .value, maptitle){
     coord_sf()
 }
 createMap_cutoff_noscale <- function(.data, .name, .limits, .breaks, .value, maptitle){
-  ggplot() +
+  ggplot() +  
+    geom_sf(data = lake_gsl, fill = "#c6dbef", color = "#9ecae1") +
+    geom_tile(data = cdl_water_df, aes(x = x, y = y, fill = color), na.rm = TRUE, show.legend = FALSE) +
+    scale_fill_manual(name = '', values = '#3182bd', labels = NULL, na.value = NA) +
+    new_scale_fill() +  
     geom_tile(data = .data, aes(x = X, y = Y, fill = {{.value}})) +
     scale_fill_viridis_c(name = .name, limits = .limits, breaks = .breaks) +
     geom_sf(data = basin_gsl, fill = NA, color = "gray30") +
