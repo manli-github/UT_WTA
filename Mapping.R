@@ -377,12 +377,8 @@ map_baseline <- createMap_a_noscale(maptitle = '(a) Projected Status', .value = 
 map_baseline_county <- createMap_a_noscale(maptitle = '(b) Lower 95% CI (County)', .value = enroll_upper, .data = alfalfa_wta_county)
 map_baseline_basin <- createMap_a(maptitle = '(c\u200B) Lower 95% CI (Watershed)',.value = enroll_upper, .data = alfalfa_wta_basin)
 map_combined_baseline <- ggarrange(map_baseline,map_baseline_county,map_baseline_basin,nrow = 1,ncol = 3,common.legend = T,legend="right")
-ggsave('/Users/manli/Library/CloudStorage/Box-Box/Manuscripts/UT_WTA/Tex/map_cutoff_baseline.jpeg',plot=map_combined_baseline,
-       width=16,height=8,dpi=300)
-
-#map_baseline <- createMap_a_noscale(maptitle = '', .value = enroll, .data = alfalfa_wta_pixel)
-#map_conserved <- createMap_a_noscale(maptitle = '', .value = enroll_a, .data = alfalfa_wta_pixel)
-#map_combined <- ggarrange(map_baseline, map_conserved,nrow=1,ncol=2,common.legend=T,legend="right",labels=c('(a)','(b)'))
+ggsave('~/map_cutoff_baseline.jpeg',plot=map_combined_baseline,
+       width=16,height=8,dpi=300)# Fig 6
 
 cutoff_limits <- range(c(alfalfa_wta_pixel$cutoff_wta),na.rm = TRUE)
 cutoff_breaks <- pretty(cutoff_limits)
@@ -395,14 +391,6 @@ map_conserved_cutoff <- createMap_cutoff(.data = alfalfa_wta_pixel, maptitle = '
 map_combined_cutoff <- ggarrange(map_baseline_cutoff, map_conserved_cutoff,nrow=1,ncol=2,common.legend = T,legend="right")
 ggsave('~/map_cutoff_payment.jpeg',plot=map_combined_cutoff,width=16,height=10,dpi=300) # Fig 5  
  
-# Baseline scenario: county and basin, and uniform
-map_baseline <- createMap_a_noscale(maptitle = 'Projection (County, Watershed)', .value = enroll, .data = alfalfa_wta_county)
-map_baseline_county <- createMap_a_noscale(maptitle = 'Lower Bound of 95% CI (County)', .value = enroll_upper, .data = alfalfa_wta_county)
-map_baseline_basin <- createMap_a(maptitle = 'Lower Bound of 95% CI (Watershed)', .value = enroll_upper, .data = alfalfa_wta_basin)
-map_combined_baseline <- ggarrange(map_baseline,map_baseline_county,map_baseline_basin,nrow = 1, ncol = 3,
-          common.legend = T,legend="bottom",labels=c('(a)','(b)','(c)'))
-ggsave('~/map_cutoff_baseline.jpeg',plot=map_combined_baseline,
-       width=16,height=10,dpi=300) # Fig 6
 
 # Conservative scenario: county, basin, and uniform
 map_conserved_county <- createMap_a_noscale(maptitle = '(a) Projected Status (County)', .value = enroll_a, .data = alfalfa_wta_county)
