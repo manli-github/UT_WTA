@@ -325,34 +325,128 @@ mc_curve <- function(mc){
   mc_Bear <- mc[[1]]
   mc_Weber <- mc[[2]]
   mc_Jordan <- mc[[3]]
-  y_limits <- c(min(mc_Bear$cost,mc_Weber$cost,mc_Jordan$cost), max(mc_Bear$cost,mc_Weber$cost,mc_Jordan$cost))
+  y_limits <- c(min(mc_Bear$cost_lower,mc_Weber$cost_lower,mc_Jordan$cost_lower),max(mc_Bear$cost_upper,mc_Weber$cost_upper,mc_Jordan$cost_upper))
+  text_size <- 16
+  legend_text_size <- 16
+  title_size <- 18
   p1 <- ggplot(mc_Bear, aes(x = water_cum, y = cost, color = group)) +
     geom_ribbon(aes(ymin = cost_lower, ymax = cost_upper), fill = "grey70", alpha = 0.5, lty = 'blank') + # Add confidence interval
     geom_line(lwd = .5) +
     labs(x = 'Conserved water (million cubic meter)', y = "Marginal cost ($/cubic meter)", 
-         title = 'Bear') +
+         title = '(a) Bear') +
     scale_y_continuous(limits = y_limits, breaks = seq(0, y_limits[2], by = .1)) + 
-    theme_minimal()
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = text_size),            # X and Y axis labels size
+      axis.text = element_text(size = text_size - 2),         # Axis values size
+      legend.text = element_text(size = legend_text_size),    # Legend text size
+      legend.title = element_text(size = legend_text_size),   # Legend title size
+      legend.key.size = unit(1.5, "lines"),                   # Legend symbols size
+      plot.title = element_text(size = title_size, face = "bold") # Title size and style
+    )
   p2 <- ggplot(mc_Weber, aes(x = water_cum, y = cost, color = group)) +
     geom_ribbon(aes(ymin = cost_lower, ymax = cost_upper), fill = "grey70", alpha = 0.5, lty = 'blank') + # Add confidence interval
     geom_line(lwd = .5) +
     labs(x = 'Conserved water (million cubic meter)', y = "", 
-         title = "Weber") +
+         title = "(b) Weber") +
     scale_y_continuous(limits = y_limits, breaks = seq(0, y_limits[2], by = .1)) + 
-    theme_minimal()
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = text_size),
+      axis.text = element_text(size = text_size - 2),
+      legend.text = element_text(size = legend_text_size),
+      legend.title = element_text(size = legend_text_size),
+      legend.key.size = unit(1.5, "lines"),
+      plot.title = element_text(size = title_size, face = "bold")
+    )
   p3 <- ggplot(mc_Jordan, aes(x = water_cum, y = cost, color = group)) +
     geom_ribbon(aes(ymin = cost_lower, ymax = cost_upper), fill = "grey70", alpha = 0.5, lty = 'blank') + # Add confidence interval
     geom_line(lwd = .5) +
     labs(x = 'Conserved water (million cubic meter)', y = "", 
-         title = "Jordan") +
+         title = "(c) Jordan") +
     scale_y_continuous(limits = y_limits, breaks = seq(0, y_limits[2], by = .1)) + 
-    theme_minimal()
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = text_size),
+      axis.text = element_text(size = text_size - 1),
+      legend.text = element_text(size = legend_text_size),
+      legend.title = element_text(size = legend_text_size),
+      legend.key.size = unit(1.5, "lines"),
+      plot.title = element_text(size = title_size, face = "bold")
+    )
   my_list <- list(p1,p2,p3)
   return(my_list)
 }
 alfalfa_mc <- mc(alfalfa_wta)
 outplots <- mc_curve(alfalfa_mc)
-ggarrange(outplots[[1]],outplots[[2]],outplots[[3]],nrow=1,ncol=3,common.legend = TRUE, legend = "bottom")
+baseline_mc <- ggarrange(outplots[[1]],outplots[[2]],outplots[[3]],nrow=1,ncol=3,common.legend = TRUE, legend = "bottom")
+ggsave('~/baseline_mc.jpeg',plot=baseline_mc,
+       width=16,height=10,dpi=300)
+
+mc_aggregate <- function(wta){
+  mc_Fallow <- wta %>% 
+    arrange(cost_Fallow,water_Fallow) %>% 
+    mutate(group = 'Fallow') %>% 
+    mutate(water=water_Fallow/1000000) %>% # million m3
+    rename(cost=cost_Fallow,cost_lower=cost_Fallow_lower,cost_upper=cost_Fallow_upper) %>% #$/m3
+    dplyr::select(basin,county,group,water,cost,cost_lower,cost_upper) 
+  
+  mc_Grain <-  wta %>% 
+    arrange(cost_Grain,water_Grain) %>% 
+    mutate(group = 'Spring Grains') %>% 
+    mutate(water=water_Grain/1000000) %>% 
+    rename(cost=cost_Grain,cost_lower=cost_Grain_lower,cost_upper=cost_Grain_upper) %>% 
+    dplyr::select(basin,county,group,water,cost,cost_lower,cost_upper) 
+  
+  mc_Hay <- wta %>% 
+    arrange(cost_Hay,water_Hay) %>% 
+    mutate(group = 'Hay') %>% 
+    mutate(water=water_Hay/1000000) %>% 
+    rename(cost=cost_Hay,cost_lower=cost_Hay_lower,cost_upper=cost_Hay_upper) %>% 
+    dplyr::select(basin,county,group,water,cost,cost_lower,cost_upper) 
+  
+  output <- rbind(mc_Fallow,mc_Grain,mc_Hay) %>% 
+    group_by(group) %>% 
+    mutate(water_cum=cumsum(water))
+  
+  return(output) 
+}
+mc_curve_aggregate <- function(mc){
+  y_limits <- c(min(mc$cost_lower),max(mc$cost_upper))
+  x_max <- max(mc$water_cum)
+  text_size <- 16
+  legend_text_size <- 16
+  title_size <- 18
+  p_aggregate <- ggplot(mc, aes(x = water_cum, y = cost, color = group)) +
+    geom_ribbon(aes(ymin = cost_lower, ymax = cost_upper), fill = "grey70", alpha = 0.5, lty = 'blank') + # Add confidence interval
+    geom_line(lwd = .5) +
+    geom_vline(xintercept = 581, linetype = "dashed", color = "gray40", linewidth = 0.7) + 
+    annotate("text", x = 585, y = y_limits[2] * 0.98, label = "Target Level", color = "gray40", 
+             angle = 90, vjust = 1, hjust = 1, size = 5) +
+    #annotate("text", x = 581, y = y_limits[2], label = "Target Level", color = "gray40", angle = 90, vjust = -0.5, size = 5) +
+    labs(x = 'Conserved water (million cubic meter)', y = "Marginal cost ($/cubic meter)", 
+         title = '(d) All three watersheds') +
+    scale_x_continuous(breaks = seq(0, x_max, by = 100)) +
+    scale_y_continuous(limits = y_limits, breaks = seq(0, y_limits[2], by = .1)) + 
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = text_size),            # X and Y axis labels size
+      axis.text = element_text(size = text_size - 1),         # Axis values size
+      legend.text = element_text(size = legend_text_size),    # Legend text size
+      legend.title = element_text(size = legend_text_size),   # Legend title size
+      legend.key.size = unit(1.5, "lines"),                   # Legend symbols size
+      plot.title = element_text(size = title_size, face = "bold")  # Title size and style
+    )
+  return(p_aggregate)
+}
+alfalfa_mc_aggregate <- mc_aggregate(alfalfa_wta)
+plot_a <- mc_curve_aggregate(alfalfa_mc_aggregate)
+
+combined_plot <- (outplots[[1]] + outplots[[2]] + outplots[[3]]) / plot_a + 
+  plot_layout(guides = "collect") &     # Collect shared legend
+  theme(legend.position = "bottom")
+ggsave('~/baseline_mc_all.jpeg',plot=combined_plot,
+       width=16,height=16,dpi=300)
 
 ########### Sensitivity Test ###########
 ### Sensitivity to changes in crop net returns ###
